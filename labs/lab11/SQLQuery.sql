@@ -13,6 +13,7 @@ USE Dictionary
 GO
 
 
+
 -- 2. Diction хүснэгтийг үүсгэх.
 CREATE TABLE [Diction] (
     [Number] int IDENTITY PRIMARY KEY ,
@@ -24,6 +25,11 @@ CREATE TABLE [Diction] (
 )
 GO
 
+-- DDL DATA DEFINITION LANG
+-- DML DATA MANUPULATION LANG
+-- TCL TRANSACTION CONTROL LANG
+--      * COMMIT
+--      * ROLLBACK
 -- 3. AddWord гэсэн нэртэй Stored Procedure үүсгэ. Энэ нь дараах нөхцлийн хангасан байх
 --      • CreateDate, UpdateDate багануудад тухайн оруулж байгаа цагийг оруулах
 --      • Count багана нь үг хайсныг тоолох учираас анхны утга нь 0 байна
@@ -103,6 +109,8 @@ GO
 
 -- Error handling
 AddWord N'coerce', N'албадах';
+GO
+AddWord 1, 2;
 GO
 
 SELECT *
@@ -232,18 +240,21 @@ CREATE OR ALTER PROCEDURE DeleteWord (
 ) AS
 SET NOCOUNT ON;
 BEGIN TRY
-    DELETE Diction
-    WHERE [Number] = @Number
-
-    IF @@ROWCOUNT = 0
+    IF EXISTS (
+        SELECT [Number]
+        FROM Diction
+        WHERE [Number] = @Number
+    )
         BEGIN
-            ROLLBACK TRANSACTION
+            DELETE Diction
+            WHERE [Number] = @Number
+    
+            PRINT N'Амжилттай устгагдлаа.'
+        END
+    ELSE 
+        BEGIN
             PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
         END
-    ELSE IF @@TRANCOUNT > 0
-        COMMIT TRANSACTION
-    ELSE
-        PRINT N'Амжилттай засагдлаа.'
 END TRY
 
 BEGIN CATCH
@@ -257,9 +268,14 @@ GO
 AddWord N'compress', N'шахах'
 GO
 
-DeleteWord 21
+DeleteWord 22
 GO
+
+DELETE FROM [Diction]
+WHERE Number = 22
 
 SELECT *
 FROM Diction
 GO
+
+
