@@ -13,33 +13,43 @@ USE Dictionary
 GO
 
 
+
 -- 2. Diction хүснэгтийг үүсгэх.
-CREATE TABLE [Diction] (
+CREATE TABLE [Diction]
+(
     [Number] int IDENTITY PRIMARY KEY ,
     English nvarchar(100) UNIQUE NOT NULL ,
     Mongolian nvarchar(100) UNIQUE NOT NULL ,
     [Count] int ,
     CreatedDate smalldatetime,
-    UpdatedDate smalldatetime ,
+    UpdatedDate smalldatetime
+    ,
 )
 GO
 
+-- DDL DATA DEFINITION LANG
+-- DML DATA MANUPULATION LANG
+-- TCL TRANSACTION CONTROL LANG
+--      * COMMIT
+--      * ROLLBACK
 -- 3. AddWord гэсэн нэртэй Stored Procedure үүсгэ. Энэ нь дараах нөхцлийн хангасан байх
 --      • CreateDate, UpdateDate багануудад тухайн оруулж байгаа цагийг оруулах
 --      • Count багана нь үг хайсныг тоолох учираас анхны утга нь 0 байна
 --      • Амжилттай нэмсэн болон алдаа гарсан тохиолдолд мэдээлэл өгдөг байх
-CREATE OR ALTER PROCEDURE AddWord (
+CREATE OR ALTER PROCEDURE AddWord
+    (
     @EnglishWord nvarchar(100),
     @MongolianWord nvarchar(100),
     @Count int = 0
-) AS
+)
+AS
 SET NOCOUNT ON;
 BEGIN TRY
     BEGIN TRANSACTION
 
         INSERT INTO [Diction]
-        VALUES
-            (@EnglishWord, @MongolianWord, @Count, GETDATE(), GETDATE())
+VALUES
+    (@EnglishWord, @MongolianWord, @Count, GETDATE(), GETDATE())
 
     IF @@TRANCOUNT > 0
         COMMIT TRANSACTION
@@ -104,6 +114,8 @@ GO
 -- Error handling
 AddWord N'coerce', N'албадах';
 GO
+AddWord 1, 2;
+GO
 
 SELECT *
 FROM Diction
@@ -115,22 +127,24 @@ GO
 --      • Хайх бүрт Count багана нь 1-р өсдөг байна. Яагаад гэвэл хүн тухайн үгийг хэдэн удаа хайсныг хадгалдаг байх юм
 --      • Хайлтын үр дүнд зөвхөн Бичлэгийн дугаар, Монгол, Англи гэсэн 2 багана харагдахаар хийнэ
 --      • Хайлтыг Like ашиглан хайх үгээр эхэлсэн хойшоогоо дурын байхаар хийнэ үү
-CREATE OR ALTER PROCEDURE FindWord (
+CREATE OR ALTER PROCEDURE FindWord
+    (
     @Word nvarchar(100) = N'%',
     @Lang nvarchar(2) = N'EN'
-) AS
+)
+AS
 SET NOCOUNT ON;
 IF @Lang = N'MN'
     BEGIN
-        UPDATE Diction
+    UPDATE Diction
         SET [Count] += 1
         WHERE Mongolian LIKE (@Word + N'%');
 
-        SELECT [Number], Mongolian, English
-        FROM Diction
-        WHERE Mongolian LIKE (@Word + N'%');
+    SELECT [Number], Mongolian, English
+    FROM Diction
+    WHERE Mongolian LIKE (@Word + N'%');
 
-    END
+END
 ELSE IF @Lang = N'EN'
     BEGIN
         UPDATE Diction
@@ -155,11 +169,13 @@ GO
 --      • 3 parameter-тэй байна. Эхнийх нь засах Number-н дугаар, 2 дахь нь засах үг, 3 дахь нь Монгол уу? Англи уу? Гэсэн төлөв
 --      • Засах болгонд UpdatedDate багана тухайн агшины системийн цагийг авдаг байна.
 --      • Амжилттай засагдсан болон алдаа гарсан үед мэдээлэл өгдөг байх
-CREATE OR ALTER PROCEDURE EditWord (
+CREATE OR ALTER PROCEDURE EditWord
+    (
     @Number int,
     @EditedWord nvarchar(100),
     @Lang nvarchar(2) = N'EN'
-) AS
+)
+AS
 SET NOCOUNT ON;
 IF @Lang = N'MN'
     BEGIN TRY
@@ -168,10 +184,7 @@ IF @Lang = N'MN'
         WHERE [Number] = @Number
 
         IF @@ROWCOUNT = 0
-            BEGIN
-                ROLLBACK TRANSACTION
-                PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
-            END
+            PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
         ELSE IF @@TRANCOUNT > 0
             BEGIN
                 COMMIT TRANSACTION
@@ -192,10 +205,7 @@ ELSE IF @Lang = N'EN'
         WHERE [Number] = @Number
 
         IF @@ROWCOUNT = 0
-            BEGIN
-                ROLLBACK TRANSACTION
-                PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
-            END
+            PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
         ELSE IF @@TRANCOUNT > 0
             BEGIN
                 COMMIT TRANSACTION
@@ -227,19 +237,50 @@ GO
 --      • 1 parameter-тэй байна. Тэр нь тухай бичлэгийн дугаар байна
 --      • Өгөгдлийг байгаа тохиолдолд устгана
 --      • Амжилттай болон алдаа хийгдсэн мэдээлэл буцааж өгдөг байх
-CREATE OR ALTER PROCEDURE DeleteWord (
+CREATE OR ALTER PROCEDURE DeleteWord
+    (
     @Number int
-) AS
+)
+AS
+SET NOCOUNT ON;
+BEGIN TRY
+    IF EXISTS (
+        SELECT [Number]
+        FROM Diction
+        WHERE [Number] = @Number
+    )
+        BEGIN
+    DELETE Diction
+    WHERE [Number] = @Number
+
+    PRINT N'Амжилттай устгагдлаа.'
+END
+    ELSE 
+        PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
+END TRY
+
+BEGIN CATCH
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION
+
+    PRINT N'Алдаа гарлаа.'
+END CATCH
+GO
+
+/*
+-- Alternative solution
+CREATE OR ALTER PROCEDURE DeleteWord
+    (
+    @Number int
+)
+AS
 SET NOCOUNT ON;
 BEGIN TRY
     DELETE Diction
     WHERE [Number] = @Number
 
     IF @@ROWCOUNT = 0
-        BEGIN
-            ROLLBACK TRANSACTION
-            PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
-        END
+        PRINT N'Таны оруулсан өгөгдөл байхгүй байна.'
     ELSE IF @@TRANCOUNT > 0
         COMMIT TRANSACTION
     ELSE
@@ -253,13 +294,18 @@ BEGIN CATCH
     PRINT N'Алдаа гарлаа.'
 END CATCH
 GO
+*/
 
 AddWord N'compress', N'шахах'
 GO
 
-DeleteWord 21
+DeleteWord 22
 GO
+
 
 SELECT *
 FROM Diction
 GO
+
+
+
